@@ -7,7 +7,6 @@ import logging
 import multiprocessing
 import pymongo
 import random
-import sys
 import time
 
 minval=-1000000
@@ -68,6 +67,7 @@ def chunks(iterator, n):
         collections.deque(chunk, 0)
 
 class CollectionThread(multiprocessing.Process):
+    '''A thread that operates on a collection.'''
     def __init__(self, coll):
         multiprocessing.Process.__init__(self)
         self.coll = coll
@@ -76,11 +76,14 @@ class CollectionThread(multiprocessing.Process):
     def name(self):
         return '%s(%s)' % (self.__class__.__name__, self.coll.fullname)
 
+    def _run(self):
+        raise NotImplementedError
+
     def run(self):
         logging.debug('Starting %s', self.name)
         try:
             self._run()
-        except KeyboardInterrupt, e:
+        except KeyboardInterrupt:
             return
         except:
             logging.exception('Exception in %s:', self.name)
@@ -88,10 +91,12 @@ class CollectionThread(multiprocessing.Process):
         logging.debug('Stopping %s', self.name)
 
 class FillThread(CollectionThread):
+    '''Fills a collection.'''
     def _run(self):
         self.coll.fill()
 
 class StressThread(CollectionThread):
+    '''A CollectionThread that runs a repeated operation until a timer expires.'''
     def __init__(self, coll, stop_event):
         CollectionThread.__init__(self, coll)
         self.stop_event = stop_event
@@ -99,7 +104,7 @@ class StressThread(CollectionThread):
     def __getattr__(self, attr):
         try:
             return self.tc[attr]
-        except KeyError, e:
+        except KeyError:
             raise AttributeError
 
     def sleep(self, secs):
@@ -132,6 +137,7 @@ class ScanThread(StressThread):
 class PointQueryThread(StressThread):
     tc = c['ptquery']
     def step(self):
+        # Without the sum, might not force the cursor to iterate over everything.
         suma = sum(item['a'] for item in self.coll.find({'_id': {'$in': sampleids(self.batch)}}))
 
 class DropThread(StressThread):
@@ -143,6 +149,7 @@ class DropThread(StressThread):
             self.coll.ensure_indexes()
 
 class Collection(pymongo.collection.Collection):
+    '''A collection that understands our schema.'''
     def __init__(self, db, i):
         name = 'coll%d' % i
         pymongo.collection.Collection.__init__(self, db, name)
@@ -157,7 +164,7 @@ class Collection(pymongo.collection.Collection):
     def ensure_indexes(self):
         for i in range(c['indexes']):
             k = index_key(i)
-            logging.debug('creating index %s' % k)
+            logging.debug('creating index %s', k)
             self.create_index(k)
 
     def fill(self):
@@ -174,19 +181,7 @@ class Collection(pymongo.collection.Collection):
         for chunk in chunks(docs, 10000):
             self.insert(chunk, manipulate=False)
             inserted = min(inserted + 10000, c['documents'])
-            logging.debug('Filling %s %d/%d' % (self.fullname, inserted, c['documents']))
-
-    def start_threads(self, stop_event):
-        for klass in [UpdateThread, PointQueryThread, ScanThread, DropThread]:
-            for i in range(klass.tc['threads']):
-                t = klass(self, stop_event)
-                self.threads.append(t)
-                t.start()
-
-    def join_threads(self):
-        while len(self.threads) > 0:
-            t = self.threads.pop()
-            t.join()
+            logging.debug('Filling %s %d/%d', self.fullname, inserted, c['documents'])
 
 def setup(db):
     colls = []
@@ -207,25 +202,59 @@ def fill(colls):
 
 def stress(colls):
     stop_event = multiprocessing.Event()
+    threads = []
     try:
         logging.info('Starting stress test')
         for coll in colls:
-            coll.start_threads(stop_event)
-        time.sleep(10)
+            for klass in [UpdateThread, PointQueryThread, ScanThread, DropThread]:
+                t = klass(coll, stop_event)
+                threads.append(t)
+                t.start()
+        time.sleep(c['seconds'])
         logging.info('Stopping stress test')
     except KeyboardInterrupt:
         pass
     finally:
         stop_event.set()
-        for coll in colls:
-            coll.join_threads()
+        while len(threads) > 0:
+            t = threads.pop()
+            t.join()
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser(description='Stress test for mongodb.')
-    parser.add_argument('--host', default='127.0.0.1', type=str)
-    parser.add_argument('--port', default=27017, type=int)
     parser.add_argument('--verbose', '-v', action='count')
-    # TODO: Maybe construct arguments out of config hash.
+
+    conn_args = parser.add_argument_group('Connection')
+    conn_args.add_argument('--host', default='127.0.0.1', type=str)
+    conn_args.add_argument('--port', default=27017, type=int)
+
+    exec_args = parser.add_argument_group('Execution')
+    stress_or_create = exec_args.add_mutually_exclusive_group()
+    stress_or_create.add_argument('--only-stress', action='store_true')
+    stress_or_create.add_argument('--only-create', action='store_true')
+    exec_args.add_argument('--keep-database', action='store_true')
+
+    def add_conf_item(arg_group, d, key, val, prefix=None):
+        if isinstance(val, collections.Mapping):
+            groupname = '%s Thread Configuration' % key.capitalize()
+            nested_group = parser.add_argument_group(groupname)
+            for nk, nv in val.iteritems():
+                add_conf_item(nested_group, val, nk, nv, '%s-' % key)
+        else:
+            if prefix is None:
+                flag = '%s' % key
+            else:
+                flag = '%s%s' % (prefix, key)
+            def setter_call(self, parser, namespace, values, option_string=None):
+                self.the_dest[self.the_destkey] = values
+            setter_class = type('%s-setter' % flag, (argparse.Action,),
+                                {'the_dest': d, 'the_destkey': key, '__call__': setter_call})
+            arg_group.add_argument('--%s' % flag, default=val, type=type(val), action=setter_class)
+
+    conf_args = parser.add_argument_group('Configuration')
+    for topkey, topval in c.iteritems():
+        add_conf_item(conf_args, c, topkey, topval)
+
     args = parser.parse_args()
 
     if args.verbose is None:
@@ -233,10 +262,20 @@ if __name__ == '__main__':
     log_levels = [logging.WARNING, logging.INFO, logging.DEBUG]
     logging.basicConfig(level=log_levels[args.verbose])
 
-    conn = pymongo.MongoClient(args.host, args.port)
-    conn.drop_database('stress_test')
-    colls = setup(conn.stress_test)
-    fill(colls)
-    stress(colls)
-    conn.drop_database('stress_test')
-    conn.close()
+    try:
+        conn = pymongo.MongoClient(args.host, args.port)
+
+        colls = setup(conn.stress_test)
+        if not args.only_stress:
+            conn.drop_database('stress_test')
+            fill(colls)
+        if not args.only_create:
+            stress(colls)
+    finally:
+        if not (args.only_create or args.keep_database):
+            conn.drop_database('stress_test')
+
+        conn.close()
+
+if __name__ == '__main__':
+    main()

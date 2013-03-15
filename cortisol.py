@@ -97,13 +97,15 @@ class FillThread(CollectionThread):
 
 class StressThread(CollectionThread):
     '''A CollectionThread that runs a repeated operation until a timer expires.'''
-    def __init__(self, coll, stop_event):
+    def __init__(self, coll, stop_event, queue):
         CollectionThread.__init__(self, coll)
         self.stop_event = stop_event
+        self.queue = queue
+        self.cnt = collections.Counter()
 
     def __getattr__(self, attr):
         try:
-            return self.tc[attr]
+            return c[self.key][attr]
         except KeyError:
             raise AttributeError
 
@@ -112,36 +114,45 @@ class StressThread(CollectionThread):
         while not self.stop_event.is_set() and time.time() - t0 < secs:
             time.sleep(1)
 
+    def performance_inc(self, key, n=1):
+        self.cnt[key] += n
+
     def _run(self):
-        while not self.stop_event.is_set():
-            self.step()
+        try:
+            while not self.stop_event.is_set():
+                self.step()
+        finally:
+            self.queue.put(self.cnt)
 
 def sampleids(n):
     return random.sample(xrange(c['documents']), n)
 
 class UpdateThread(StressThread):
-    tc = c['update']
+    key = 'update'
     def step(self):
         # TODO: Construct some invariant-preserving update statement.
         d = {}
         for f in fields[:c['fields']]:
             d[f] = random.randint(minval, maxval)
         self.coll.update({'_id': {'$in': sampleids(self.batch)}}, {'$inc': d}, multi=True)
+        self.performance_inc('updates', self.batch)
 
 class ScanThread(StressThread):
-    tc = c['scan']
+    key = 'scan'
     def step(self):
         # Without the sum, might not force the cursor to iterate over everything.
         suma = sum(item['a'] for item in self.coll.find())
+        self.performance_inc('scans')
 
 class PointQueryThread(StressThread):
-    tc = c['ptquery']
+    key = 'ptquery'
     def step(self):
         # Without the sum, might not force the cursor to iterate over everything.
         suma = sum(item['a'] for item in self.coll.find({'_id': {'$in': sampleids(self.batch)}}))
+        self.performance_inc('ptqueries', self.batch)
 
 class DropThread(StressThread):
-    tc = c['drop']
+    key = 'drop'
     def step(self):
         self.sleep(self.period)
         if not self.stop_event.is_set():
@@ -202,14 +213,18 @@ def fill(colls):
 
 def stress(colls):
     stop_event = multiprocessing.Event()
+    cnt = collections.Counter()
+    queue = multiprocessing.Queue()
     threads = []
+    t0 = time.time()
     try:
         logging.info('Starting stress test')
         for coll in colls:
             for klass in [UpdateThread, PointQueryThread, ScanThread, DropThread]:
-                t = klass(coll, stop_event)
-                threads.append(t)
-                t.start()
+                for _ in range(c[klass.key]['threads']):
+                    t = klass(coll, stop_event, queue)
+                    threads.append(t)
+                    t.start()
         time.sleep(c['seconds'])
         logging.info('Stopping stress test')
     except KeyboardInterrupt:
@@ -219,6 +234,12 @@ def stress(colls):
         while len(threads) > 0:
             t = threads.pop()
             t.join()
+        while not queue.empty():
+            cnt.update(queue.get())
+
+    runtime = time.time() - t0
+    for name, ops in sorted(cnt.items()):
+        print '%d\t%f %s/s' % (ops, float(ops)/runtime, name)
 
 def main():
     parser = argparse.ArgumentParser(description='Stress test for mongodb.')
@@ -235,10 +256,10 @@ def main():
     exec_args.add_argument('--keep-database', action='store_true')
 
     def add_conf_item(arg_group, d, key, val, prefix=None):
-        if isinstance(val, collections.Mapping):
+        if isinstance(val, collections.MutableMapping):
             groupname = '%s Thread Configuration' % key.capitalize()
             nested_group = parser.add_argument_group(groupname)
-            for nk, nv in val.iteritems():
+            for nk, nv in val.items():
                 add_conf_item(nested_group, val, nk, nv, '%s-' % key)
         else:
             if prefix is None:
@@ -252,7 +273,7 @@ def main():
             arg_group.add_argument('--%s' % flag, default=val, type=type(val), action=setter_class)
 
     conf_args = parser.add_argument_group('Configuration')
-    for topkey, topval in c.iteritems():
+    for topkey, topval in c.items():
         add_conf_item(conf_args, c, topkey, topval)
 
     args = parser.parse_args()

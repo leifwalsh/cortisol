@@ -76,75 +76,71 @@ class CollectionThread(multiprocessing.Process):
     def name(self):
         return '%s(%s)' % (self.__class__.__name__, self.coll.fullname)
 
-class FillThread(CollectionThread):
     def run(self):
+        logging.debug('Starting %s', self.name)
         try:
-            self.coll.fill()
+            self._run()
         except KeyboardInterrupt, e:
-            pass
+            return
         except:
             logging.exception('Exception in %s:', self.name)
             raise
+        logging.debug('Stopping %s', self.name)
 
-class Runner(CollectionThread):
+class FillThread(CollectionThread):
+    def _run(self):
+        self.coll.fill()
+
+class StressThread(CollectionThread):
     def __init__(self, coll, stop_event):
         CollectionThread.__init__(self, coll)
         self.stop_event = stop_event
 
-    def run(self):
-        logging.debug('Starting %s', self.name)
+    def __getattr__(self, attr):
+        try:
+            return self.tc[attr]
+        except KeyError, e:
+            raise AttributeError
+
+    def sleep(self, secs):
+        t0 = time.time()
+        while not self.stop_event.is_set() and time.time() - t0 < secs:
+            time.sleep(1)
+
+    def _run(self):
         while not self.stop_event.is_set():
-            try:
-                self.step()
-            except KeyboardInterrupt, e:
-                break
-            except:
-                logging.exception('Exception in %s:', self.name)
-                raise
-        logging.debug('Stopping %s', self.name)
+            self.step()
 
 def sampleids(n):
     return random.sample(xrange(c['documents']), n)
 
-class UpdateThread(Runner):
+class UpdateThread(StressThread):
     tc = c['update']
     def step(self):
         # TODO: Construct some invariant-preserving update statement.
         d = {}
         for f in fields[:c['fields']]:
             d[f] = random.randint(minval, maxval)
-        self.coll.update({'_id': {'$in': sampleids(self.tc['batch'])}}, {'$inc': d}, multi=True)
+        self.coll.update({'_id': {'$in': sampleids(self.batch)}}, {'$inc': d}, multi=True)
 
-class ScanThread(Runner):
+class ScanThread(StressThread):
     tc = c['scan']
     def step(self):
         # Without the sum, might not force the cursor to iterate over everything.
         suma = sum(item['a'] for item in self.coll.find())
 
-class PointQueryThread(Runner):
+class PointQueryThread(StressThread):
     tc = c['ptquery']
     def step(self):
-        suma = sum(item['a'] for item in self.coll.find({'_id': {'$in': sampleids(self.tc['batch'])}}))
+        suma = sum(item['a'] for item in self.coll.find({'_id': {'$in': sampleids(self.batch)}}))
 
-class Timeout(Exception):
-    pass
-
-class DropThread(Runner):
+class DropThread(StressThread):
     tc = c['drop']
     def step(self):
-        try:
-            self.waitfor(self.tc['period'])
+        self.sleep(self.period)
+        if not self.stop_event.is_set():
             self.coll.drop()
             self.coll.ensure_indexes()
-        except Timeout, e:
-            return
-
-    def waitfor(self, secs):
-        t0 = time.time()
-        while not self.stop_event.is_set() and time.time() - t0 < secs:
-            time.sleep(1)
-        if self.stop_event.is_set():
-            raise Timeout()
 
 class Collection(pymongo.collection.Collection):
     def __init__(self, db, i):

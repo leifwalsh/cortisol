@@ -283,9 +283,9 @@ def main():
     log_levels = [logging.WARNING, logging.INFO, logging.DEBUG]
     logging.basicConfig(level=log_levels[args.verbose])
 
-    try:
-        conn = pymongo.MongoClient(args.host, args.port)
+    conn = pymongo.MongoClient(args.host, args.port)
 
+    try:
         colls = setup(conn.stress_test)
         if not args.only_stress:
             conn.drop_database('stress_test')

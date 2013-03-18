@@ -121,7 +121,11 @@ class UpdateThread(StressThread):
         d = {}
         for f in fields[:conf.fields]:
             d[f] = random.randint(MINVAL, MAXVAL)
-        self.coll.update({'_id': {'$in': sampleids(self.batch)}}, {'$inc': d}, multi=True)
+        iddoc = {'_id': 0}
+        incdoc = {'$inc': d}
+        for id in sampleids(self.batch):
+            iddoc['_id'] = id
+            self.coll.update(iddoc, incdoc)
         self.performance_inc('updates', self.batch)
 
 class ScanThread(StressThread):
@@ -139,8 +143,10 @@ class PointQueryThread(StressThread):
     def step(self):
         # Without the sum, might not force the cursor to iterate over everything.
         suma = 0
+        iddoc = {'_id': 0}
         for id in sampleids(self.batch):
-            for doc in self.coll.find({'_id': id}):
+            iddoc['_id'] = id
+            for doc in self.coll.find(iddoc):
                 suma += doc['a']
         self.performance_inc('ptqueries', self.batch)
 

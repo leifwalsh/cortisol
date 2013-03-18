@@ -299,9 +299,10 @@ def main():
     conn = pymongo.MongoClient(args.host, args.port)
 
     try:
-        colls = setup(conn.stress_test)
         if not args.only_stress:
             conn.drop_database('stress_test')
+        colls = setup(conn.stress_test)
+        if not args.only_stress:
             fill(colls)
         if not args.only_create:
             stress(colls)

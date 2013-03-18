@@ -138,7 +138,10 @@ class PointQueryThread(StressThread):
     batch = 50
     def step(self):
         # Without the sum, might not force the cursor to iterate over everything.
-        suma = sum(item['a'] for item in self.coll.find({'_id': {'$in': sampleids(self.batch)}}))
+        suma = 0
+        for id in sampleids(self.batch):
+            for doc in self.coll.find({'_id': id}):
+                suma += doc['a']
         self.performance_inc('ptqueries', self.batch)
 
 class DropThread(StressThread):

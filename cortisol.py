@@ -9,10 +9,12 @@ import logging
 import multiprocessing
 import os
 import pymongo
+import Queue
 import random
 import re
 import shlex
 import sys
+import threading
 import time
 
 MINVAL = -1000000
@@ -53,13 +55,43 @@ def index_key(i):
         i /= 2
     return r
 
-def chunks(iterator, n):
-    '''Given an iterable, yields chunks of size n, where a chunk itself is iterable.'''
-    iterator = iter(iterator)
-    for first in iterator:
-        chunk = itertools.chain((first,), itertools.islice(iterator, n-1))
-        yield chunk
-        collections.deque(chunk, 0)
+class ChunkGenerator(threading.Thread):
+    def __init__(self, iterable, chunksize, queue):
+        threading.Thread.__init__(self)
+        self.iterable = iterable
+        self.chunksize = chunksize
+        self.queue = queue
+
+    @staticmethod
+    def chunks(iterator, n):
+        '''Given an iterable, yields chunks of size n, where a chunk itself is iterable.'''
+        iterator = iter(iterator)
+        for first in iterator:
+            chunk = itertools.chain((first,), itertools.islice(iterator, n-1))
+            yield chunk
+            collections.deque(chunk, 0)
+
+    def run(self):
+        try:
+            for chunk in self.chunks(self.iterable, self.chunksize):
+                # Force the computation on this thread
+                self.queue.put(list(chunk))
+        except KeyboardInterrupt:
+            return
+
+def chunks(iterable, chunksize):
+    '''Given a (lazy) iterable, and a chunk size, generates and yields chunks of that size and forces the computation on a background thread.'''
+
+    q = Queue.Queue(maxsize=3)
+    t = ChunkGenerator(iterable, chunksize, q)
+    t.start()
+    while t.is_alive() or not q.empty():
+        try:
+            chunk = q.get(True, 1)
+            yield chunk
+        except Queue.Empty:
+            pass
+    t.join()
 
 class CollectionThread(multiprocessing.Process):
     '''A thread that operates on a collection.'''

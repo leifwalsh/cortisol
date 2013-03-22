@@ -1,10 +1,13 @@
 #!/usr/bin/env python2.7
 
 import argparse
+import bson
+import bson.binary
 import collections
 import itertools
 import logging
 import multiprocessing
+import os
 import pymongo
 import random
 import re
@@ -23,7 +26,9 @@ conf = Config(
     indexes = 4,
     fields = 2,
     documents = 2**20,
-    seconds = 600
+    seconds = 600,
+    padding = 200,
+    compressibility = 0.25
     )
 
 fields = 'abcdefghijklmnopqrstuvwxyz'
@@ -186,14 +191,18 @@ class Collection(pymongo.collection.Collection):
             d = {'_id': i}
             for f in fields[:conf.fields]:
                 d[f] = 0
+            compressible_bytes = int(conf.padding * conf.compressibility)
+            s = '0' * compressible_bytes
+            s += os.urandom(conf.padding - compressible_bytes)
+            d['pad'] = bson.binary.Binary(s)
             return d
 
         docs = (zero_doc(i) for i in xrange(conf.documents))
 
         inserted = 0
-        for chunk in chunks(docs, 10000):
+        for chunk in chunks(docs, 100000):
             self.insert(chunk, manipulate=False)
-            inserted = min(inserted + 10000, conf.documents)
+            inserted = min(inserted + 100000, conf.documents)
             logging.debug('Filling %s %d/%d', self.fullname, inserted, conf.documents)
 
 def setup(db):

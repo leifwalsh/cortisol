@@ -301,7 +301,6 @@ def main():
                 return [arg]
         return itertools.chain.from_iterable(expandarg(arg) for arg in args)
 
-    print list(expandargs(sys.argv[1:]))
     args = parser.parse_args(list(expandargs(sys.argv[1:])))
 
     if args.verbose is None:

@@ -131,10 +131,6 @@ class StressThread(CollectionThread):
         self.stop_event = stop_event
         self.queue = queue
         self.cnt = collections.Counter()
-        try:
-            self.chunks = chunks(self.generate(), self.batch)
-        except NotImplementedError:
-            pass
 
     def sleep(self, secs):
         t0 = time.time()
@@ -148,6 +144,10 @@ class StressThread(CollectionThread):
         raise NotImplementedError
 
     def _run(self):
+        try:
+            self.chunks = chunks(self.generate(), self.batch)
+        except NotImplementedError:
+            pass
         try:
             while not self.stop_event.is_set():
                 self.step()

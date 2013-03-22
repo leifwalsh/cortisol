@@ -9,6 +9,7 @@ import pymongo
 import random
 import re
 import shlex
+import sys
 import time
 
 MINVAL = -1000000
@@ -245,7 +246,6 @@ def stress(colls):
 def main():
     parser = argparse.ArgumentParser(description='Stress test for mongodb.')
     parser.add_argument('--verbose', '-v', action='count')
-    parser.add_argument('--config', '-c', type=str)
 
     conn_args = parser.add_argument_group('Connection')
     conn_args.add_argument('--host', default='127.0.0.1', type=str)
@@ -282,14 +282,18 @@ def main():
             v = getattr(cls, k)
             add_conf_item(cls_args, cls, k, v, lowercase)
 
-    args = parser.parse_args()
+    def expandargs(args):
+        def expandarg(arg):
+            if arg[0] == '@':
+                with open(arg[1:], 'r') as f:
+                    data = f.read()
+                return expandargs(shlex.split(data, '#'))
+            else:
+                return [arg]
+        return itertools.chain.from_iterable(expandarg(arg) for arg in args)
 
-    if args.config is not None:
-        with open(args.config, 'r') as config:
-            configdata = config.read()
-        args = parser.parse_args(shlex.split(configdata, '#'))
-        # re-parse sys.argv to override things in config
-        args = parser.parse_args(namespace=args)
+    print list(expandargs(sys.argv[1:]))
+    args = parser.parse_args(list(expandargs(sys.argv[1:])))
 
     if args.verbose is None:
         args.verbose = 0

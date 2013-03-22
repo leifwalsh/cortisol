@@ -134,6 +134,24 @@ class UpdateThread(StressThread):
             self.coll.update(iddoc, incdoc)
         self.performance_inc('updates', self.batch)
 
+class SaveThread(StressThread):
+    config = ['threads', 'batch']
+    threads = 4
+    batch = 50
+    def step(self):
+        def new_doc(i):
+            d = {'_id': i}
+            for f in fields[:conf.fields]:
+                d[f] = random.randint(MINVAL, MAXVAL)
+            compressible_bytes = int(conf.padding * conf.compressibility)
+            s = '0' * compressible_bytes
+            s += os.urandom(conf.padding - compressible_bytes)
+            d['pad'] = bson.binary.Binary(s)
+            return d
+        for id in sampleids(self.batch):
+            self.coll.save(new_doc(id))
+        self.performance_inc('saves', self.batch)
+
 class ScanThread(StressThread):
     config = ['threads']
     threads = 2
@@ -213,6 +231,7 @@ def setup(db):
 
 def fill(colls):
     threads = []
+    t0 = time.time()
     try:
         for coll in colls:
             t = FillThread(coll)
@@ -221,6 +240,10 @@ def fill(colls):
     finally:
         for t in threads:
             t.join()
+
+    runtime = time.time() - t0
+    ops = conf.documents * conf.collections
+    print '%d\t%f inserts/s' % (ops, float(ops)/runtime)
 
 def stress(colls):
     stop_event = multiprocessing.Event()

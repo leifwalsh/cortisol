@@ -131,6 +131,10 @@ class StressThread(CollectionThread):
         self.stop_event = stop_event
         self.queue = queue
         self.cnt = collections.Counter()
+        try:
+            self.chunks = chunks(self.generate(), self.batch)
+        except NotImplementedError:
+            pass
 
     def sleep(self, secs):
         t0 = time.time()
@@ -139,6 +143,9 @@ class StressThread(CollectionThread):
 
     def performance_inc(self, key, n=1):
         self.cnt[key] += n
+
+    def generate(self):
+        raise NotImplementedError
 
     def _run(self):
         try:
@@ -154,15 +161,20 @@ class UpdateThread(StressThread):
     config = ['threads', 'batch']
     threads = 4
     batch = 50
+    def generate(self):
+        while True:
+            d = {}
+            for f in fields[:conf.fields]:
+                d[f] = random.randint(MINVAL, MAXVAL)
+            iddoc = {'_id': 0}
+            incdoc = {'$inc': d}
+            for i in sampleids(self.batch):
+                iddoc['_id'] = i
+                yield iddoc, incdoc
+
     def step(self):
         # TODO: Construct some invariant-preserving update statement.
-        d = {}
-        for f in fields[:conf.fields]:
-            d[f] = random.randint(MINVAL, MAXVAL)
-        iddoc = {'_id': 0}
-        incdoc = {'$inc': d}
-        for id in sampleids(self.batch):
-            iddoc['_id'] = id
+        for iddoc, incdoc in next(self.chunks):
             self.coll.update(iddoc, incdoc)
         self.performance_inc('updates', self.batch)
 
@@ -170,18 +182,20 @@ class SaveThread(StressThread):
     config = ['threads', 'batch']
     threads = 4
     batch = 50
-    def step(self):
-        def new_doc(i):
-            d = {'_id': i}
+    def generate(self):
+        while True:
+            d = {'_id': random.randint(0, conf.documents)}
             for f in fields[:conf.fields]:
                 d[f] = random.randint(MINVAL, MAXVAL)
             compressible_bytes = int(conf.padding * conf.compressibility)
             s = '0' * compressible_bytes
             s += os.urandom(conf.padding - compressible_bytes)
             d['pad'] = bson.binary.Binary(s)
-            return d
-        for id in sampleids(self.batch):
-            self.coll.save(new_doc(id))
+            yield d
+
+    def step(self):
+        for doc in next(self.chunks):
+            self.coll.save(doc)
         self.performance_inc('saves', self.batch)
 
 class ScanThread(StressThread):
@@ -196,12 +210,14 @@ class PointQueryThread(StressThread):
     config = ['threads', 'batch']
     threads = 4
     batch = 50
+    def generate(self):
+        while True:
+            yield {'_id': random.randint(0, conf.documents)}
+
     def step(self):
         # Without the sum, might not force the cursor to iterate over everything.
         suma = 0
-        iddoc = {'_id': 0}
-        for id in sampleids(self.batch):
-            iddoc['_id'] = id
+        for iddoc in next(self.chunks):
             for doc in self.coll.find(iddoc):
                 suma += doc['a']
         self.performance_inc('ptqueries', self.batch)

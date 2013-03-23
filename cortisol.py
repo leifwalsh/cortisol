@@ -159,7 +159,7 @@ def sampleids(n):
 
 class UpdateThread(StressThread):
     config = ['threads', 'batch']
-    threads = 4
+    threads = 0
     batch = 50
     def generate(self):
         while True:
@@ -180,7 +180,7 @@ class UpdateThread(StressThread):
 
 class SaveThread(StressThread):
     config = ['threads', 'batch']
-    threads = 4
+    threads = 0
     batch = 50
     def generate(self):
         while True:
@@ -200,7 +200,7 @@ class SaveThread(StressThread):
 
 class ScanThread(StressThread):
     config = ['threads']
-    threads = 2
+    threads = 0
     def step(self):
         # Without the sum, might not force the cursor to iterate over everything.
         suma = sum(item['a'] for item in self.coll.find())
@@ -208,7 +208,7 @@ class ScanThread(StressThread):
 
 class PointQueryThread(StressThread):
     config = ['threads', 'batch']
-    threads = 4
+    threads = 0
     batch = 50
     def generate(self):
         while True:
@@ -224,7 +224,7 @@ class PointQueryThread(StressThread):
 
 class DropThread(StressThread):
     config = ['threads', 'period']
-    threads = 1
+    threads = 0
     period = 60
     def step(self):
         self.sleep(self.period)

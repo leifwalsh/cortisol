@@ -390,9 +390,6 @@ def main():
         if not args.only_create:
             stress(colls)
     finally:
-        if not (args.only_create or args.keep_database):
-            conn.drop_database('stress_test')
-
         conn.close()
 
 if __name__ == '__main__':

@@ -266,9 +266,9 @@ class Collection(pymongo.collection.Collection):
         docs = (zero_doc(i) for i in xrange(conf.documents))
 
         inserted = 0
-        for chunk in chunks(docs, 100000):
+        for chunk in chunks(docs, 10000):
             self.insert(chunk, manipulate=False)
-            inserted = min(inserted + 100000, conf.documents)
+            inserted = min(inserted + 10000, conf.documents)
             logging.debug('Filling %s %d/%d', self.fullname, inserted, conf.documents)
 
 def setup(db):

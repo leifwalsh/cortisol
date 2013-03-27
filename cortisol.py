@@ -166,11 +166,9 @@ class UpdateThread(StressThread):
             d = {}
             for f in fields[:conf.fields]:
                 d[f] = random.randint(MINVAL, MAXVAL)
-            iddoc = {'_id': 0}
             incdoc = {'$inc': d}
             for i in sampleids(self.batch):
-                iddoc['_id'] = i
-                yield iddoc, incdoc
+                yield {'_id': i}, incdoc
 
     def step(self):
         # TODO: Construct some invariant-preserving update statement.

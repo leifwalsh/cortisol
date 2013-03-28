@@ -162,18 +162,21 @@ class UpdateThread(StressThread):
     threads = 0
     batch = 50
     def generate(self):
+        from itertools import izip, starmap, repeat
+        from random import randint
+        batch = self.batch
+        nfields = conf.fields
         while True:
-            d = {}
-            for f in fields[:conf.fields]:
-                d[f] = random.randint(MINVAL, MAXVAL)
-            incdoc = {'$inc': d}
-            for i in sampleids(self.batch):
+            incdoc = {'$inc': dict(izip(fields[:nfields],
+                                        starmap(randint, repeat((MINVAL, MAXVAL)))))}
+            for i in sampleids(batch):
                 yield {'_id': i}, incdoc
 
     def step(self):
         # TODO: Construct some invariant-preserving update statement.
+        update = self.coll.update
         for iddoc, incdoc in next(self.chunks):
-            self.coll.update(iddoc, incdoc)
+            update(iddoc, incdoc)
         self.performance_inc('updates', self.batch)
 
 class SaveThread(StressThread):
@@ -181,19 +184,27 @@ class SaveThread(StressThread):
     threads = 0
     batch = 50
     def generate(self):
+        from itertools import izip, starmap, repeat
+        from random import randint
+        from os import urandom
+        from bson.binary import Binary
+        compressible_bytes = int(conf.padding * conf.compressibility)
+        uncompressible_bytes = conf.padding - compressible_bytes
+        s = '0' * conf.padding
+        nfields = conf.fields
+        ndocs = conf.documents
         while True:
-            d = {'_id': random.randint(0, conf.documents)}
-            for f in fields[:conf.fields]:
-                d[f] = random.randint(MINVAL, MAXVAL)
-            compressible_bytes = int(conf.padding * conf.compressibility)
-            s = '0' * compressible_bytes
-            s += os.urandom(conf.padding - compressible_bytes)
-            d['pad'] = bson.binary.Binary(s)
+            s[compressible_bytes:] = urandom(uncompressible_bytes)
+            d = dict(izip(fields[:nfields],
+                          starmap(randint, repeat((MINVAL, MAXVAL)))))
+            d['_id'] = randint(0, ndocs)
+            d['pad'] = Binary(s)
             yield d
 
     def step(self):
+        save = self.coll.save
         for doc in next(self.chunks):
-            self.coll.save(doc)
+            save(doc)
         self.performance_inc('saves', self.batch)
 
 class ScanThread(StressThread):
@@ -209,15 +220,17 @@ class PointQueryThread(StressThread):
     threads = 0
     batch = 50
     def generate(self):
-        while True:
-            yield {'_id': random.randint(0, conf.documents)}
+        def geniddoc(id):
+            return {'_id': id}
+        from random import randint
+        from itertools import starmap, repeat
+        return starmap(geniddoc, starmap(randint, repeat((0, conf.documents))))
 
     def step(self):
         # Without the sum, might not force the cursor to iterate over everything.
-        suma = 0
+        find = self.coll.find
         for iddoc in next(self.chunks):
-            for doc in self.coll.find(iddoc):
-                suma += doc['a']
+            suma = sum(doc['a'] for doc in find(iddoc))
         self.performance_inc('ptqueries', self.batch)
 
 class DropThread(StressThread):

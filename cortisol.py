@@ -190,15 +190,15 @@ class SaveThread(StressThread):
         from bson.binary import Binary
         compressible_bytes = int(conf.padding * conf.compressibility)
         uncompressible_bytes = conf.padding - compressible_bytes
-        s = '0' * conf.padding
+        sc = '0' * compressible_bytes
         nfields = conf.fields
         ndocs = conf.documents
         while True:
-            s[compressible_bytes:] = urandom(uncompressible_bytes)
+            su = urandom(uncompressible_bytes)
             d = dict(izip(fields[:nfields],
                           starmap(randint, repeat((MINVAL, MAXVAL)))))
             d['_id'] = randint(0, ndocs)
-            d['pad'] = Binary(s)
+            d['pad'] = Binary(sc + su)
             yield d
 
     def step(self):

@@ -223,8 +223,8 @@ class PointQueryThread(StressThread):
         def geniddoc(id):
             return {'_id': id}
         from random import randint
-        from itertools import starmap, repeat
-        return starmap(geniddoc, starmap(randint, repeat((0, conf.documents))))
+        from itertools import imap, starmap, repeat
+        return imap(geniddoc, starmap(randint, repeat((0, conf.documents))))
 
     def step(self):
         # Without the sum, might not force the cursor to iterate over everything.

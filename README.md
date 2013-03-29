@@ -8,6 +8,24 @@ Some examples are point queries (`db.coll.find({'_id': x})`), overwrite inserts 
 
 It should be easy to extend with new operations, and is meant for both stress testing and performance testing.
 
+Dependencies
+------------
+
+You need python 2.7 and pymongo installed to run cortisol.
+
+The most straightforward way to get a complete python distribution is the [Enthought Python Distribution][epd].
+
+You can install pymongo from [source][pymongo], but make sure you install the C extensions:
+
+    $ python setup.py --with-c-ext install [--user]
+
+You should check that the C extensions are definitely installed.  The following should print `True` twice:
+
+    $ python -c 'import pymongo; print pymongo.has_c(); import bson; print bson.has_c()'
+
+[epd]: http://www.enthought.com/products/epd_free.php "Enthought Python Distribution"
+[pymongo]: http://github.com/mongodb/mongo-python-driver "PyMongo"
+
 Usage
 -----
 

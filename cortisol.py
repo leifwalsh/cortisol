@@ -157,6 +157,33 @@ class StressThread(CollectionThread):
 def sampleids(n):
     return random.sample(xrange(conf.documents), n)
 
+class InsertThread(StressThread):
+    config = ['threads', 'batch']
+    threads = 0
+    batch = 50
+    def generate(self):
+        from itertools import izip, starmap, repeat
+        from random import randint
+        from os import urandom
+        from bson.binary import Binary
+        from bson.son import SON
+        compressible_bytes = int(conf.padding * conf.compressibility)
+        uncompressible_bytes = conf.padding - compressible_bytes
+        sc = '0' * compressible_bytes
+        nfields = conf.fields
+        ndocs = conf.documents
+        while True:
+            su = urandom(uncompressible_bytes)
+            d = dict(izip(fields[:nfields],
+                          starmap(randint, repeat((MINVAL, MAXVAL)))))
+            s = SON(d)
+            s['pad'] = Binary(sc + su)
+            yield s
+
+    def step(self):
+        self.coll.insert(next(self.chunks))
+        self.performance_inc('inserts', self.batch)
+
 class UpdateThread(StressThread):
     config = ['threads', 'batch']
     threads = 0
@@ -267,7 +294,7 @@ class Collection(pymongo.collection.Collection):
         def zero_doc(i):
             d = {'_id': i}
             for f in fields[:conf.fields]:
-                d[f] = 0
+                d[f] = random.randint(MINVAL, MAXVAL)
             compressible_bytes = int(conf.padding * conf.compressibility)
             s = '0' * compressible_bytes
             s += os.urandom(conf.padding - compressible_bytes)

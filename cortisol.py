@@ -189,21 +189,19 @@ class UpdateThread(StressThread):
     threads = 0
     batch = 50
     def generate(self):
-        from itertools import izip, starmap, repeat
         from random import randint
-        batch = self.batch
-        nfields = conf.fields
-        while True:
-            incdoc = {'$inc': dict(izip(fields[:nfields],
-                                        starmap(randint, repeat((MINVAL, MAXVAL)))))}
-            for i in sampleids(batch):
-                yield {'_id': i}, incdoc
+        from itertools import starmap, repeat
+        return starmap(randint, repeat((0, conf.documents)))
 
     def step(self):
+        from random import randint
+        from itertools import izip, starmap, repeat
         # TODO: Construct some invariant-preserving update statement.
         update = self.coll.update
-        for iddoc, incdoc in next(self.chunks):
-            update(iddoc, incdoc)
+        incdoc = {'$inc': { 'z': 1 }}#dict(izip(fields[:conf.fields],
+                          #          starmap(randint, repeat((MINVAL, MAXVAL)))))}
+        ids = next(self.chunks)
+        update({"_id": { "$in" : ids }}, incdoc, multi = True)
         self.performance_inc('updates', self.batch)
 
 class SaveThread(StressThread):
@@ -247,17 +245,15 @@ class PointQueryThread(StressThread):
     threads = 0
     batch = 50
     def generate(self):
-        def geniddoc(id):
-            return {'_id': id}
         from random import randint
-        from itertools import imap, starmap, repeat
-        return imap(geniddoc, starmap(randint, repeat((0, conf.documents))))
+        from itertools import starmap, repeat
+        return starmap(randint, repeat((0, conf.documents)))
 
     def step(self):
         # Without the sum, might not force the cursor to iterate over everything.
         find = self.coll.find
-        for iddoc in next(self.chunks):
-            suma = sum(doc['a'] for doc in find(iddoc))
+        ids = next(self.chunks)
+        suma = sum(doc['a'] for doc in find({"_id": { "$in" : ids }}))
         self.performance_inc('ptqueries', self.batch)
 
 class DropThread(StressThread):

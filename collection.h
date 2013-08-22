@@ -112,8 +112,8 @@ class CollectionRunner : public ConnectionInfo {
     }
 
     void operator()() {
-        unique_ptr<mongo::ScopedDbConnection> c(mongo::ScopedDbConnection::getScopedDbConnection(_opts.host));
         while (_running) {
+            unique_ptr<mongo::ScopedDbConnection> c(mongo::ScopedDbConnection::getScopedDbConnection(_opts.host));
             try {
                 interrupter.check_for_interrupt();
                 step(c->conn());
@@ -126,8 +126,8 @@ class CollectionRunner : public ConnectionInfo {
             } catch (std::exception &e) {
                 cerr << "caught exception " << e.what() << endl;
             }
+            c->done();
         }
-        c->done();
     }
 
     template<class ostream_type>

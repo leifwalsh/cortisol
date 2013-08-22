@@ -32,6 +32,7 @@ Options Options::default_options() {
     opts.padding = 100;
     opts.compressibility = 0.25;
     opts.seconds = 60;
+    opts.pad_output = true;
     opts.ofs = "\t";
     opts.ors = "\n";
     return opts;
@@ -51,6 +52,7 @@ Options::Options(const po::variables_map &vm)
           padding         (vm["padding"].as<size_t>()),
           compressibility (vm["compressibility"].as<double>()),
           seconds         (vm["seconds"].as<int>()),
+          pad_output      (vm["pad-output"].as<bool>()),
           ofs             (vm["ofs"].as<string>()),
           ors             (vm["ors"].as<string>())
 {}
@@ -84,8 +86,9 @@ po::options_description Options::options_description() const {
 
     po::options_description disp_options("Display");
     disp_options.add_options()
-            ("ofs", po::value<string>()->default_value(ofs), "Output field separator.")
-            ("ors", po::value<string>()->default_value(ors), "Output record separator.")
+            ("pad-output", po::value<bool>()->default_value(pad_output), "Pad output fields into columns.")
+            ("ofs",        po::value<string>()->default_value(ofs),      "Output field separator.")
+            ("ors",        po::value<string>()->default_value(ors),      "Output record separator.")
             ;
 
     po::options_description all_options("General");

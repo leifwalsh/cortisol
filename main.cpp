@@ -38,8 +38,13 @@ void int_handler(int sig) {
     signal(sig, SIG_DFL);
 }
 
+namespace out {
+
+bool pad_output;
 string ofs;
 string ors;
+
+};
 
 static string collname(size_t i) {
     stringstream ss;
@@ -48,8 +53,9 @@ static string collname(size_t i) {
 }
 
 void run(const Options &opts) {
-    ofs = opts.ofs;
-    ors = opts.ors;
+    out::pad_output = opts.pad_output;
+    out::ofs = opts.ofs;
+    out::ors = opts.ors;
 
     interrupter.check_for_interrupt();
     {
@@ -106,6 +112,9 @@ void run(const Options &opts) {
                 for (int i = 0; i < opts.seconds; interrupter.check_for_interrupt(), ++i) {
                     usleep(1000000);
                     timestamp_t ti = now();
+                    if (i % 10 == 0) {
+                        CollectionRunner::header(cout);
+                    }
                     std::for_each(runners.begin(), runners.end(),
                                   [ti](const unique_ptr<CollectionRunner> &runner) {
                                       runner->report(cout, ti);
@@ -120,10 +129,10 @@ void run(const Options &opts) {
             std::for_each(threads.begin(), threads.end(), std::mem_fn(&std::thread::join));
 
             timestamp_t t1 = now();
-            cout << endl << "TOTALS:" << ors;
+            cout << endl << "# TOTALS:" << endl;
             std::for_each(runners.begin(), runners.end(),
                           [t1](const unique_ptr<CollectionRunner> &runner) {
-                              runner->report(cout, t1);
+                              runner->total(cout, t1);
                           });
         }
     }

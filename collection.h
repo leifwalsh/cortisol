@@ -131,13 +131,38 @@ class CollectionRunner : public ConnectionInfo {
     }
 
     template<class ostream_type>
+    static void header(ostream_type &os) {
+        using out::ofs;
+        using out::ors;
+
+        os << "# " << out::pad(16) << "ns" << ofs
+           << out::pad(10) << "type" << ofs
+           << out::pad(4) << "id" << ofs
+           << counter<size_t>::header() << ors;
+    }
+
+    template<class ostream_type>
     void report(ostream_type &os, timestamp_t ti) {
+        using out::ofs;
+        using out::ors;
+
         static std::mutex _m;
         std::lock_guard<std::mutex> lk(_m);
-        os << ns() << ofs
-           << std::setiosflags(std::ios_base::right) << std::setw(10) << name() << ofs
-           << _id << ofs
+        os << out::pad(18) << ns() << ofs
+           << out::pad(10) << name() << ofs
+           << out::pad(4) << _id << ofs
            << _steps.report(ti) << ors;
+    }
+
+    template<class ostream_type>
+    void total(ostream_type &os, timestamp_t ti) {
+        using out::ofs;
+        using out::ors;
+
+        os << out::pad(18) << ns() << ofs
+           << out::pad(10) << name() << ofs
+           << out::pad(4) << _id << ofs
+           << _steps.total(ti) << ors;
     }
 
     void stop() {

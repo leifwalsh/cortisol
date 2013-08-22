@@ -188,6 +188,9 @@ void Collection::fill() {
             });
         producer.detach();
 
+        using out::ofs;
+        using out::ors;
+
         timestamp_t t0 = now();
         counter<size_t> i(t0);
         for (; i < _opts.documents; interrupter.check_for_interrupt()) {
@@ -199,8 +202,8 @@ void Collection::fill() {
 
             {
                 std::lock_guard<std::mutex> lk(output_mutex);
-                cout << ns() << ofs
-                     << std::setiosflags(std::ios_base::right) << std::setw(10) << "fill" << ofs
+                cout << out::pad(18) << ns() << ofs
+                     << out::pad(10) << "fill" << ofs
                      << i.report(now()) << ors;
             }
         }
@@ -210,8 +213,8 @@ void Collection::fill() {
             loader->commit();
             {
                 std::lock_guard<std::mutex> lk(output_mutex);
-                cout << ns() << ofs
-                     << std::setiosflags(std::ios_base::right) << std::setw(10) << "fill" << ofs
+                cout << out::pad(18) << ns() << ofs
+                     << out::pad(10) << "fill" << ofs
                      << i.report(now()) << ors;
             }
         }

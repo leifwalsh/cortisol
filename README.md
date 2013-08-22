@@ -52,3 +52,10 @@ You can use a file ./cortisol.cnf to avoid typing lots of things on the command 
 Command line options, when specified, override the configuration parameters.
 
 See [cortisol.cnf](http://github.com/leifwalsh/cortisol/blob/master/cortisol.cnf) for an example.
+
+Output
+------
+
+By default, output is TSV.  You can control the output with `--pad-output=[yes|no]`, `--ofs=<sep>`, and `--ors=<sep>`.
+
+To get CSV, try `--pad-output=no --ofs=,`.

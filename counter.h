@@ -14,8 +14,26 @@ namespace cortisol {
 using std::atomic;
 using std::string;
 
+namespace out {
+
+extern bool pad_output;
 extern string ofs;
 extern string ors;
+
+class pad {
+    size_t _n;
+  public:
+    pad(size_t n) : _n(n) {}
+    template<class ostream_type>
+    friend inline ostream_type &operator<<(ostream_type &os, const pad &p) {
+        if (pad_output) {
+            os << std::setiosflags(std::ios_base::right) << std::setw(p._n);
+        }
+        return os;
+    }
+};
+
+} // namespace out;
 
 template<typename T>
 class counter : public atomic<T> {
@@ -28,44 +46,73 @@ class counter : public atomic<T> {
     counter& operator=(const counter&) = delete;
 
     class output_line {
+        bool _total;
         T _iteration;
         T _cumulative;
         double _period;
         double _elapsed;
       public:
-        output_line(T iteration, T cumulative, double period, double elapsed) : _iteration(iteration), _cumulative(cumulative), _period(period), _elapsed(elapsed) {}
+        output_line(T iteration, T cumulative, double period, double elapsed) : _total(false), _iteration(iteration), _cumulative(cumulative), _period(period), _elapsed(elapsed) {}
+        output_line(T cumulative, double elapsed) : _total(true), _iteration(0), _cumulative(cumulative), _period(0), _elapsed(elapsed) {}
 
-        template<typename ostream_type>
-        static void int_fmt(ostream_type &os) {
-            os << std::setiosflags(std::ios_base::right)
-               << std::setw(10);
-        }
-        template<typename ostream_type>
-        static void double_fmt(ostream_type &os) {
-            os << std::setiosflags(std::ios_base::right)
-               << std::setw(14)
-               << std::fixed
-               << std::setprecision(4);
-        }
+        class int_fmt {
+          public:
+            template<typename ostream_type>
+            friend inline ostream_type &operator<<(ostream_type &os, const int_fmt &h) {
+                os << out::pad(10);
+                return os;
+            }
+        };
+        class double_fmt {
+          public:
+            template<typename ostream_type>
+            friend inline ostream_type &operator<<(ostream_type &os, const double_fmt &h) {
+                os << out::pad(16) << std::fixed << std::setprecision(4);
+                return os;
+            }
+        };
 
         template<typename ostream_type>
         friend inline ostream_type &operator<<(ostream_type &os, const output_line &line) {
-            int_fmt(os);
-            os << line._iteration << ofs;
-            double_fmt(os);
-            os << line._period << "s" << ofs;
-            double_fmt(os);
-            os << line._iteration / line._period << "/s" << ofs;
+            using out::ofs;
 
-            int_fmt(os);
-            os << line._cumulative << ofs;
-            double_fmt(os);
-            os << line._elapsed << "s" << ofs;
-            double_fmt(os);
-            os << line._cumulative / line._elapsed << "/s";
+            if (line._total) {
+                os << int_fmt() << "total" << ofs
+                   << double_fmt() << "       " << ofs
+                   << double_fmt() << "       " <<  ofs;
+            } else {
+                os << int_fmt() << line._iteration << ofs
+                   << double_fmt() << line._period << ofs
+                   << double_fmt() << line._iteration / line._period << ofs;
+            }
+
+            os << int_fmt() << line._cumulative << ofs
+               << double_fmt() << line._elapsed <<  ofs
+               << double_fmt() << line._cumulative / line._elapsed;
+
             return os;
         }
+
+        class header {
+          public:
+            template<typename ostream_type>
+            friend inline ostream_type &operator<<(ostream_type &os, const header &h) {
+                using out::ofs;
+
+                os << int_fmt() << "i_ops (#)" << ofs
+                   << double_fmt() << "i_time (s)" << ofs
+                   << double_fmt() << "i_rate (/s)" << ofs
+                   << int_fmt() << "c_ops (#)" << ofs
+                   << double_fmt() << "c_time (s)" << ofs
+                   << double_fmt() << "c_rate (/s)";
+                return os;
+            }
+        };
     };
+
+    static typename output_line::header header() {
+        return typename output_line::header();
+    }
 
     output_line report(timestamp_t ti) {
         double period = ts_to_secs(ti - _last_t);
@@ -77,6 +124,13 @@ class counter : public atomic<T> {
         _last_val = this_val;
 
         return output_line(delta, this_val, period, elapsed);
+    }
+
+    output_line total(timestamp_t ti) {
+        double elapsed = ts_to_secs(ti - _t0);
+        T this_val = atomic<T>::load();
+
+        return output_line(this_val, elapsed);
     }
 };
 

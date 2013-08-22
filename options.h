@@ -31,6 +31,7 @@ class Options {
 
     int seconds;
 
+    bool pad_output;
     string ofs;
     string ors;
 

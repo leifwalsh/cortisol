@@ -232,6 +232,7 @@ void UpdateRunner::step(mongo::DBClientBase &conn) {
     {
         alarm a;
         conn.update(ns(), spec, b.done());
+        conn.getLastError();
     }
 }
 

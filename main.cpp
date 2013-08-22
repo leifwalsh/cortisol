@@ -109,10 +109,16 @@ void run(const Options &opts) {
                            });
 
             try {
-                for (int i = 0; i < opts.seconds; interrupter.check_for_interrupt(), ++i) {
-                    usleep(1000000);
+                double elapsed = 0.0;
+                for (int i = 0; ; interrupter.check_for_interrupt(), ++i) {
+                    usleep(std::min((opts.seconds - elapsed), opts.output_period) * 1000000);
                     timestamp_t ti = now();
-                    if (i % 10 == 0) {
+                    elapsed = ts_to_secs(ti - t0);
+                    if (elapsed >= opts.seconds) {
+                        break;
+                    }
+                    if (i % opts.header_frequency == 0 ||
+                        (i == 0 && opts.header_frequency >= 0)) {
                         CollectionRunner::header(cout);
                     }
                     std::for_each(runners.begin(), runners.end(),

@@ -35,6 +35,8 @@ Options Options::default_options() {
     opts.pad_output = true;
     opts.ofs = "\t";
     opts.ors = "\n";
+    opts.output_period = 1.0;
+    opts.header_frequency = 20;
     return opts;
 }
 
@@ -54,7 +56,9 @@ Options::Options(const po::variables_map &vm)
           seconds         (vm["seconds"].as<int>()),
           pad_output      (vm["pad-output"].as<bool>()),
           ofs             (vm["ofs"].as<string>()),
-          ors             (vm["ors"].as<string>())
+          ors             (vm["ors"].as<string>()),
+          output_period   (vm["output-period"].as<double>()),
+          header_frequency(vm["header-frequency"].as<int>())
 {}
 
 po::options_description Options::options_description() const {
@@ -86,9 +90,11 @@ po::options_description Options::options_description() const {
 
     po::options_description disp_options("Display");
     disp_options.add_options()
-            ("pad-output", po::value<bool>()->default_value(pad_output), "Pad output fields into columns.")
-            ("ofs",        po::value<string>()->default_value(ofs),      "Output field separator.")
-            ("ors",        po::value<string>()->default_value(ors),      "Output record separator.")
+            ("pad-output",              po::value<bool>()->default_value(pad_output),      "Pad output fields into columns.")
+            ("ofs",                     po::value<string>()->default_value(ofs),           "Output field separator.")
+            ("ors",                     po::value<string>()->default_value(ors),           "Output record separator.")
+            ("output-period",           po::value<double>()->default_value(output_period), "Seconds between output.")
+            ("header-frequency",        po::value<int>()->default_value(header_frequency), "Lines between printing headers.")
             ;
 
     po::options_description all_options("General");

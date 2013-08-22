@@ -34,6 +34,8 @@ class Options {
     bool pad_output;
     string ofs;
     string ors;
+    double output_period;
+    int header_frequency;
 
     static Options default_options();
     explicit Options(const po::variables_map &vm);

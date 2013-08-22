@@ -33,3 +33,14 @@ nosetests.xml
 .mr.developer.cfg
 .project
 .pydevproject
+
+# c++ binary
+cortisol
+
+# libs
+mongo-cxx-driver
+tokukv
+
+# scons
+.sconf_temp
+.sconsign.dblite

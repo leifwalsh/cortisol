@@ -11,27 +11,34 @@ It should be easy to extend with new operations, and is meant for both stress te
 Dependencies
 ------------
 
-You need python 2.7 and pymongo installed to run cortisol.
+You need boost 1.49.  You can specify this with `--boost=/path/to/boost/prefix`.
 
-The most straightforward way to get a complete python distribution is the [Enthought Python Distribution][epd].
+You also need [TokuKV][tokukv] installed to `./tokukv`.
 
-You can install pymongo from [source][pymongo], but make sure you install the C extensions:
+You also need to unpack mongo-cxx-driver.tgz (from [Tokutek/mongo][tokumx]) to `./mongo-cxx-driver`.
 
-    $ python setup.py --with-c-ext install [--user]
+[tokukv]: http://github.com/Tokutek/ft-index
+[tokumx]: http://github.com/Tokutek/mongo
 
-You should check that the C extensions are definitely installed.  The following should print `True` twice:
+Building
+--------
 
-    $ python -c 'import pymongo; print pymongo.has_c(); import bson; print bson.has_c()'
+To build, just run `scons`.  Add `--d` for debugging symbols.
 
-[epd]: http://www.enthought.com/products/epd_free.php "Enthought Python Distribution"
-[pymongo]: http://github.com/mongodb/mongo-python-driver "PyMongo"
+You can use `--boost` to specify where boost is installed.  If you have a tokumx build directory, you can use the version of boost installed there but it's a little annoying.  For example:
+```sh
+CC=gcc47 CXX=g++47 scons \
+    --boost=/home/leif/git/mongo/build/linux2/release/third_party/boost \
+    --extrapath=/home/leif/git/mongo/src/third_party/boost \
+    -j5 cortisol
+```
 
 Usage
 -----
 
 Typical usage would be something like
 
-    $ ./cortisol.py --documents 10000000 --pointquery-threads 8 --seconds 120
+    $ ./cortisol --documents=10000000 --point_query.threads=8 --seconds=120
 
 This will fill some collections with ten million documents each (with some indexes), and then start 8 threads per collection, doing random point queries, for two minutes.
 The performance of the point query threads is printed at the end of the run.
@@ -41,23 +48,7 @@ The help text displays all of the options.
 Configuration
 -------------
 
-Configuration files are just a set of command line arguments in a file, with optional newlines and comments starting with `#`.
-To use a configuration file named `foo.cnf`, add `@foo.cnf` to the command line.
-Multiple configuration files can be provided at once, later files and options take precedence over earlier ones.
+You can use a file ./cortisol.cnf to avoid typing lots of things on the command line.
+Command line options, when specified, override the configuration parameters.
 
-For example, you can define a setup for testing with a file `db.cnf`:
-
-    --collections 1       # one collection
-    --indexes 4
-    --fields 2            # need two fields to create 4 additional indexes
-    
-    --documents 1000000
-    --padding 250
-    --compressibility 4   # should still be in memory
-
-With this, you can run several tests in a row on the same data:
-
-    $ ./cortisol.py @db.cnf --only-create
-    $ echo "--only-stress --keep-database --seconds 120" > stress.cnf
-    $ ./cortisol.py @db.cnf @stress.cnf --pointquery-threads 1
-    $ ./cortisol.py @db.cnf @stress.cnf --pointquery-threads 2
+See [cortisol.cnf](http://github.com/leifwalsh/cortisol/blob/master/cortisol.cnf) for an example.

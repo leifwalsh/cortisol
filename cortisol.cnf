@@ -1,0 +1,66 @@
+## Sample config file for cortisol
+##
+## Default values are shown, commented out.  Uncomment and change them where you wish.
+
+################################################################################
+## General options
+
+## Host mongo process to connect to.
+## This could be complicated like
+##   host = mongodb://host1:port1,host2:port2,host3:port3/?replicaSet=rsName
+# host = 127.0.0.1
+
+## Number of collections to load and test.  Each collection has the below
+## number of documents, and for each stressor thread specified below,
+## there is one per collection.  So this is sort of a multiplier.
+# collections = 1
+
+## Number of indexes on each collection.  Must be at least 1 for stressor
+## threads to work well.
+# indexes = 3
+
+## Whether clustering indexes are used (all or none).
+# clustering = off
+
+## Number of integer fields for each document.  Must be at least 1 for
+## stressor threads to work well.  Must be at least ceil(log(# indexes))
+## because these fields are used in the index keys.
+# fields = 2
+
+## Number of documents loaded into each collection.
+# documents = 1048576
+
+## Number of bytes used to pad documents with an extra padding field.
+# padding = 100
+
+## How compressible the padding data is.  A real number between 0 and 1, 0
+## means incompressible (purely random), 1 means extremely compressible
+## (all zeroes).
+# compressibility = 0.25
+
+## Time to run stressor threads for.
+# seconds = 60
+
+################################################################################
+## Update stressor configuration:
+[update]
+
+## Number of threads (per collection).
+# threads = 0
+
+################################################################################
+## Point query stressor configuration:
+[point_query]
+
+## Number of threads (per collection).
+# threads = 0
+
+################################################################################
+## Range query stressor configuration:
+[range_query]
+
+## Number of threads (per collection).
+# threads = 0
+
+## How many documents to read at once in each range query.
+# stride = 0

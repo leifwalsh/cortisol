@@ -261,8 +261,12 @@ void RangeQueryRunner::step(mongo::DBClientBase &conn) {
     static const BSONObj covered_projection = BSON("_id" << 0 << "a" << 1);
     {
         alarm a;
-        auto_ptr<mongo::DBClientCursor> c = conn.query(ns(), QUERY( "a" << mongo::GTE << x << mongo::LT << y ),
-                                                       0, 0, covered ? &covered_projection : NULL);
+        BSONObjBuilder qb;
+        BSONObjBuilder rgb(qb.subobjStart("a"));
+        rgb.append("$gte", x);
+        rgb.append("$lt", y);
+        rgb.doneFast();
+        auto_ptr<mongo::DBClientCursor> c = conn.query(ns(), qb.done(), 0, 0, covered ? &covered_projection : NULL);
         while (c->more()) {
             bytes += c->next().objsize();
         }

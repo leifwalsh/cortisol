@@ -58,7 +58,7 @@ class RangeQueryRunner : public CollectionRunner {
     void step(mongo::DBClientBase &conn);
 
     virtual const string &name() const {
-        static const string n = "update";
+        static const string n = "rgquery";
         return n;
     }
 

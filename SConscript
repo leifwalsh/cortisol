@@ -25,8 +25,8 @@ SConscript('mongo-cxx-driver/src/SConscript.client', exports={'env': mongoEnv, '
 
 env.Append(CPPDEFINES={'_GNU_SOURCE': 1})
 env.Append(CFLAGS=['-std=c99'])
-env.Append(CCFLAGS=['-pthread', '-Wall'])
-env.Append(CXXFLAGS=['-std=c++11', '-Wno-unused-local-typedefs', '-Wno-deprecated-declarations', '-Wno-strict-aliasing', '-Wno-unused-parameter'])
+env.Append(CCFLAGS=['-pthread', '-Wall', '-Wno-strict-aliasing'])
+env.Append(CXXFLAGS=['-std=c++11', '-Wno-unused-local-typedefs', '-Wno-deprecated-declarations', '-Wno-unused-parameter'])
 env.Append(LINKFLAGS=['-static-libgcc', '-static-libstdc++', '-pthread'])
 
 if debug:

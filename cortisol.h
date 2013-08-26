@@ -68,11 +68,13 @@ class RangeQueryRunner : public CollectionRunner {
     // config
     static size_t threads;
     static size_t stride;
+    static bool covered;
     static po::options_description options_description() {
         po::options_description desc("Range Query Thread");
         desc.add_options()
                 ("range_query.threads", po::value(&threads)->default_value(threads), "# of threads.")
                 ("range_query.stride",  po::value(&stride)->default_value(stride),   "# of docs to query at once.")
+                ("range_query.covered", po::value(&covered)->default_value(covered), "Should the query be covered by the index?")
                 ;
         return desc;
     }

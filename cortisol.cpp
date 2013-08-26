@@ -254,12 +254,15 @@ void PointQueryRunner::step(mongo::DBClientBase &conn) {
 long long RangeQueryRunner::bytes = 0;
 size_t RangeQueryRunner::threads = 0;
 size_t RangeQueryRunner::stride = 0;
+bool RangeQueryRunner::covered = false;
 void RangeQueryRunner::step(mongo::DBClientBase &conn) {
     long long x = random() % (_opts.documents - stride);
     long long y = x + stride;
+    static const BSONObj covered_projection = BSON("_id" << 0 << "a" << 1);
     {
         alarm a;
-        auto_ptr<mongo::DBClientCursor> c = conn.query(ns(), QUERY( "a" << mongo::GTE << x << mongo::LT << y ));
+        auto_ptr<mongo::DBClientCursor> c = conn.query(ns(), QUERY( "a" << mongo::GTE << x << mongo::LT << y ),
+                                                       0, 0, covered ? &covered_projection : NULL);
         while (c->more()) {
             bytes += c->next().objsize();
         }

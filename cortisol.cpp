@@ -93,7 +93,12 @@ static void _random_obj(BSONObjBuilder &b, bool with_id, bool with_padding) {
         b.appendIntOrLL(field(i), random() % Collection::documents);
     }
     if (with_padding) {
-        //b << "str" << wl.randstr(Collection::padding);
+        const size_t zero_bytes = Collection::padding * Collection::compressibility;
+        const size_t rand_bytes = Collection::padding - zero_bytes;
+        unique_ptr<char[]> buf(new char[Collection::padding]);
+        std::fill(&buf[0], &buf[zero_bytes], 0);
+        std::generate(&buf[zero_bytes], &buf[zero_bytes + rand_bytes], []() { return (char) (random() & 0xff); });
+        b.appendBinData("padding", Collection::padding, mongo::BinDataGeneral, buf.get());
     }
 }
 

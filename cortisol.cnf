@@ -64,3 +64,6 @@
 
 ## How many documents to read at once in each range query.
 # stride = 0
+
+## Should the query be covered by the index?
+# covered = no

@@ -48,10 +48,16 @@ The help text displays all of the options.
 Configuration
 -------------
 
-You can use a file ./cortisol.cnf to avoid typing lots of things on the command line.
-Command line options, when specified, override the configuration parameters.
+You can use configuration files to avoid typing lots of things on the command line.
+Command line options, when specified, override all configuration parameters.
 
+The configuration syntax is ini-like.
 See [cortisol.cnf](http://github.com/leifwalsh/cortisol/blob/master/cortisol.cnf) for an example.
+
+Multiple config files can be specified on the same command line.  For example:
+
+    $ ./cortisol @db_setup.cnf --stress=off
+    $ ./cortisol @db_setup.cnf --create=off --seconds 30 @updates.cnf @point_queries.cnf
 
 Output
 ------

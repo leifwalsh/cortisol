@@ -33,6 +33,8 @@ CC=gcc47 CXX=g++47 scons \
     -j5 cortisol
 ```
 
+If you need to modify boost 1.49 to get it to compile with recent glibc (by changing `TIME_UTC` to `_TIME_UTC`, then add `--timehack` to the scons command to fix the mongodb client's usage of boost.
+
 Usage
 -----
 

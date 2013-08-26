@@ -43,61 +43,40 @@ Options Options::default_options() {
     return opts;
 }
 
-Options::Options(const po::variables_map &vm)
-        : create          (vm["create"].as<bool>()),
-          stress          (vm["stress"].as<bool>()),
-          keep_database   (vm["keep-database"].as<bool>()),
-          loader          (vm["loader"].as<bool>()),
-          host            (vm["host"].as<string>()),
-          collections     (vm["collections"].as<size_t>()),
-          indexes         (vm["indexes"].as<size_t>()),
-          clustering      (vm["clustering"].as<bool>()),
-          fields          (vm["fields"].as<size_t>()),
-          documents       (vm["documents"].as<size_t>()),
-          padding         (vm["padding"].as<size_t>()),
-          compressibility (vm["compressibility"].as<double>()),
-          seconds         (vm["seconds"].as<int>()),
-          pad_output      (vm["pad-output"].as<bool>()),
-          ofs             (vm["ofs"].as<string>()),
-          ors             (vm["ors"].as<string>()),
-          output_period   (vm["output-period"].as<double>()),
-          header_frequency(vm["header-frequency"].as<int>())
-{}
-
-po::options_description Options::options_description() const {
+po::options_description Options::options_description() {
     po::options_description conn_options("Connection");
     conn_options.add_options()
-            ("host", po::value<string>()->default_value(host), "Host to connect to.  Can also be a replica set with full \"mongodb://host1,host2,host3/?replicaSet=rsName\" syntax.")
+            ("host", po::value(&host)->default_value(host), "Host to connect to.  Can also be a replica set with full \"mongodb://host1,host2,host3/?replicaSet=rsName\" syntax.")
             ;
         
 
     po::options_description exec_options("Execution");
     exec_options.add_options()
-            ("create",        po::value<bool>()->default_value(create),        "Create and fill the collections. (skip create: --create=off)")
-            ("stress",        po::value<bool>()->default_value(stress),        "Stress an existing set of collections. (skip stress: --stress=off)")
-            ("keep-database", po::bool_switch(), "Don't drop the existing database before running.")
-            ("loader",        po::value<bool>()->default_value(loader),        "Use the bulk loader to load collections.")
+            ("create",          po::value(&create)->default_value(create),                      "Create and fill the collections. (skip create: --create=off)")
+            ("stress",          po::value(&stress)->default_value(stress),                      "Stress an existing set of collections. (skip stress: --stress=off)")
+            ("keep-database",   po::value(&keep_database)->default_value(keep_database),        "Don't drop the existing database before running.")
+            ("loader",          po::value(&loader)->default_value(loader),                      "Use the bulk loader to load collections.")
             ;
 
     po::options_description coll_options("Collection");
     coll_options.add_options()
-            ("collections",     po::value<size_t>()->default_value(collections),     "# of collections.")
-            ("indexes",         po::value<size_t>()->default_value(indexes),         "# of indexes per collection.")
-            ("clustering",      po::value<bool>()->default_value(clustering),         "Whether to cluster the secondary indexes.")
-            ("fields",          po::value<size_t>()->default_value(fields),          "# of fields in each document.")
-            ("documents",       po::value<size_t>()->default_value(documents),       "# of documents per collection.")
-            ("padding",         po::value<size_t>()->default_value(padding),         "Additional bytes of padding to fill documents with.")
-            ("compressibility", po::value<double>()->default_value(compressibility), "Compressibility of padding (between 0 and 1: 0 means purely random, 1 means fill with zeroes).")
-            ("seconds",         po::value<int>()->default_value(seconds),            "Time to run for.")
+            ("collections",     po::value(&collections)->default_value(collections),            "# of collections.")
+            ("indexes",         po::value(&indexes)->default_value(indexes),                    "# of indexes per collection.")
+            ("clustering",      po::value(&clustering)->default_value(clustering),              "Whether to cluster the secondary indexes.")
+            ("fields",          po::value(&fields)->default_value(fields),                      "# of fields in each document.")
+            ("documents",       po::value(&documents)->default_value(documents),                "# of documents per collection.")
+            ("padding",         po::value(&padding)->default_value(padding),                    "Additional bytes of padding to fill documents with.")
+            ("compressibility", po::value(&compressibility)->default_value(compressibility),    "Compressibility of padding (between 0 and 1: 0 means purely random, 1 means fill with zeroes).")
+            ("seconds",         po::value(&seconds)->default_value(seconds),                    "Time to run for.")
             ;
 
     po::options_description disp_options("Display");
     disp_options.add_options()
-            ("pad-output",              po::value<bool>()->default_value(pad_output),      "Pad output fields into columns.")
-            ("ofs",                     po::value<string>()->default_value(ofs),           "Output field separator.")
-            ("ors",                     po::value<string>()->default_value(ors),           "Output record separator.")
-            ("output-period",           po::value<double>()->default_value(output_period), "Seconds between output.")
-            ("header-frequency",        po::value<int>()->default_value(header_frequency), "Lines between printing headers.")
+            ("pad-output",       po::value(&pad_output)->default_value(pad_output),             "Pad output fields into columns.")
+            ("ofs",              po::value(&ofs)->default_value(ofs),                           "Output field separator.")
+            ("ors",              po::value(&ors)->default_value(ors),                           "Output record separator.")
+            ("output-period",    po::value(&output_period)->default_value(output_period),       "Seconds between output.")
+            ("header-frequency", po::value(&header_frequency)->default_value(header_frequency), "Lines between printing headers.")
             ;
 
     po::options_description all_options("General");
@@ -160,9 +139,6 @@ bool parse_cmdline(int argc, const char *argv[], Options &opts) {
         }
 
         po::notify(vm);
-
-        Options parsed_opts(vm);
-        opts = parsed_opts;
 
         return true;
     } catch(po::error &e) {

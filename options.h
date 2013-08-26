@@ -39,7 +39,7 @@ class Options {
 
     static Options default_options();
     explicit Options(const po::variables_map &vm);
-    po::options_description options_description() const;
+    po::options_description options_description();
 };
 
 bool parse_cmdline(int argc, const char *argv[], Options &opts);

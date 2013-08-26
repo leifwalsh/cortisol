@@ -38,9 +38,11 @@ env.Prepend(CPPPATH=['.', 'mongo-cxx-driver/src'])
 env.Append(LIBPATH=['mongo-cxx-driver/src'])
 
 env.Install('#/', env.Program('cortisol',
-                              ['cortisol.cpp',
+                              ['collection.cpp',
+                               'cortisol.cpp',
                                'main.cpp',
                                'options.cpp',
+                               'output.cpp',
                                'timing.c',
                                'words.cpp'],
                               LIBDEPS=['mongo-cxx-driver/src/mongoclient'],

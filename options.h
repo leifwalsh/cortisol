@@ -21,21 +21,7 @@ class Options {
     bool loader;
     string host;
 
-    size_t collections;
-    size_t indexes;
-    bool clustering;
-    size_t fields;
-    size_t documents;
-    size_t padding;
-    double compressibility;
-
     int seconds;
-
-    bool pad_output;
-    string ofs;
-    string ors;
-    double output_period;
-    int header_frequency;
 
     static Options default_options();
     explicit Options(const po::variables_map &vm);

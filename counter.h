@@ -7,33 +7,13 @@
 #include <mutex>
 #include <string>
 
+#include "output.h"
 #include "timing.h"
 
 namespace cortisol {
 
 using std::atomic;
 using std::string;
-
-namespace out {
-
-extern bool pad_output;
-extern string ofs;
-extern string ors;
-
-class pad {
-    size_t _n;
-  public:
-    pad(size_t n) : _n(n) {}
-    template<class ostream_type>
-    friend inline ostream_type &operator<<(ostream_type &os, const pad &p) {
-        if (pad_output) {
-            os << std::setiosflags(std::ios_base::right) << std::setw(p._n);
-        }
-        return os;
-    }
-};
-
-} // namespace out;
 
 template<typename T>
 class counter : public atomic<T> {

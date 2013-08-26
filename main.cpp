@@ -18,6 +18,7 @@
 #include "collection.h"
 #include "cortisol.h"
 #include "options.h"
+#include "output.h"
 #include "thread.h"
 #include "timing.h"
 
@@ -38,14 +39,6 @@ void int_handler(int sig) {
     signal(sig, SIG_DFL);
 }
 
-namespace out {
-
-bool pad_output;
-string ofs;
-string ors;
-
-};
-
 static string collname(size_t i) {
     stringstream ss;
     ss << "stress_test" << i << ".coll";
@@ -53,15 +46,11 @@ static string collname(size_t i) {
 }
 
 void run(const Options &opts) {
-    out::pad_output = opts.pad_output;
-    out::ofs = opts.ofs;
-    out::ors = opts.ors;
-
     interrupter.check_for_interrupt();
     {
         vector<Collection> colls;
         size_t i = 0;
-        std::generate_n(std::back_inserter(colls), opts.collections,
+        std::generate_n(std::back_inserter(colls), Collection::collections,
                         [opts, &i]() {
                             return std::move(Collection(opts, collname(i++)));
                         });
@@ -84,7 +73,7 @@ void run(const Options &opts) {
         timestamp_t t0 = now();
         {
             vector<unique_ptr<CollectionRunner> > runners;
-            for (size_t i = 0; i < opts.collections; ++i) {
+            for (size_t i = 0; i < Collection::collections; ++i) {
                 string coll = collname(i);
                 size_t id = 0;
                 std::generate_n(std::back_inserter(runners), UpdateRunner::threads,
@@ -111,14 +100,14 @@ void run(const Options &opts) {
             try {
                 double elapsed = 0.0;
                 for (int i = 0; ; interrupter.check_for_interrupt(), ++i) {
-                    usleep(std::min((opts.seconds - elapsed), opts.output_period) * 1000000);
+                    usleep(std::min((opts.seconds - elapsed), out::output_period) * 1000000);
                     timestamp_t ti = now();
                     elapsed = ts_to_secs(ti - t0);
                     if (elapsed >= opts.seconds) {
                         break;
                     }
-                    if (i % opts.header_frequency == 0 ||
-                        (i == 0 && opts.header_frequency >= 0)) {
+                    if ((i * threads.size()) % out::header_period == 0 ||
+                        (i == 0 && out::header_period >= 0)) {
                         CollectionRunner::header(cout);
                     }
                     std::for_each(runners.begin(), runners.end(),

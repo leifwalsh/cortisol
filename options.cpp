@@ -9,6 +9,7 @@
 
 #include "cortisol.h"
 #include "options.h"
+#include "output.h"
 
 namespace cortisol {
 
@@ -27,19 +28,7 @@ Options Options::default_options() {
     opts.keep_database = false;
     opts.loader = true;
     opts.host = "127.0.0.1";
-    opts.collections = 1;
-    opts.indexes = 3;
-    opts.clustering = false;
-    opts.fields = 2;
-    opts.documents = 1<<20;
-    opts.padding = 100;
-    opts.compressibility = 0.25;
     opts.seconds = 60;
-    opts.pad_output = true;
-    opts.ofs = "\t";
-    opts.ors = "\n";
-    opts.output_period = 1.0;
-    opts.header_frequency = 20;
     return opts;
 }
 
@@ -56,35 +45,15 @@ po::options_description Options::options_description() {
             ("stress",          po::value(&stress)->default_value(stress),                      "Stress an existing set of collections. (skip stress: --stress=off)")
             ("keep-database",   po::value(&keep_database)->default_value(keep_database),        "Don't drop the existing database before running.")
             ("loader",          po::value(&loader)->default_value(loader),                      "Use the bulk loader to load collections.")
-            ;
-
-    po::options_description coll_options("Collection");
-    coll_options.add_options()
-            ("collections",     po::value(&collections)->default_value(collections),            "# of collections.")
-            ("indexes",         po::value(&indexes)->default_value(indexes),                    "# of indexes per collection.")
-            ("clustering",      po::value(&clustering)->default_value(clustering),              "Whether to cluster the secondary indexes.")
-            ("fields",          po::value(&fields)->default_value(fields),                      "# of fields in each document.")
-            ("documents",       po::value(&documents)->default_value(documents),                "# of documents per collection.")
-            ("padding",         po::value(&padding)->default_value(padding),                    "Additional bytes of padding to fill documents with.")
-            ("compressibility", po::value(&compressibility)->default_value(compressibility),    "Compressibility of padding (between 0 and 1: 0 means purely random, 1 means fill with zeroes).")
-            ("seconds",         po::value(&seconds)->default_value(seconds),                    "Time to run for.")
-            ;
-
-    po::options_description disp_options("Display");
-    disp_options.add_options()
-            ("pad-output",       po::value(&pad_output)->default_value(pad_output),             "Pad output fields into columns.")
-            ("ofs",              po::value(&ofs)->default_value(ofs),                           "Output field separator.")
-            ("ors",              po::value(&ors)->default_value(ors),                           "Output record separator.")
-            ("output-period",    po::value(&output_period)->default_value(output_period),       "Seconds between output.")
-            ("header-frequency", po::value(&header_frequency)->default_value(header_frequency), "Lines between printing headers.")
+            ("seconds",         po::value(&seconds)->default_value(seconds),                    "Time to run stressors for.")
             ;
 
     po::options_description all_options("General");
     all_options
             .add(conn_options)
             .add(exec_options)
-            .add(coll_options)
-            .add(disp_options)
+            .add(Collection::options_description())
+            .add(out::options_description())
             .add(UpdateRunner::options_description())
             .add(PointQueryRunner::options_description())
             .add(RangeQueryRunner::options_description())

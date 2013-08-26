@@ -85,27 +85,27 @@ static string index_name(size_t n) {
 }
 
 /** @return a random document */
-static void _random_obj(BSONObjBuilder &b, const Options &opts, bool with_id, bool with_padding) {
+static void _random_obj(BSONObjBuilder &b, bool with_id, bool with_padding) {
     if (with_id) {
         b << mongo::GENOID;
     }
-    for (size_t i = 0; i < opts.fields; ++i) {
-        b.appendIntOrLL(field(i), random() % opts.documents);
+    for (size_t i = 0; i < Collection::fields; ++i) {
+        b.appendIntOrLL(field(i), random() % Collection::documents);
     }
     if (with_padding) {
-        //b << "str" << wl.randstr(opts.padding);
+        //b << "str" << wl.randstr(Collection::padding);
     }
 }
 
-static inline BSONObj random_obj(const Options &opts) {
+static inline BSONObj random_obj() {
     BSONObjBuilder b;
-    _random_obj(b, opts, true, true);
+    _random_obj(b, true, true);
     return b.obj();
 }
 
-BSONObj random_a(const Options &opts) {
+BSONObj random_a() {
     BSONObjBuilder b;
-    b.appendIntOrLL("a", random() % opts.documents);
+    b.appendIntOrLL("a", random() % Collection::documents);
     return b.obj();
 }
 
@@ -116,7 +116,7 @@ void Collection::drop() {
 vector<BSONObj> Collection::index_specs() const {
     vector<BSONObj> vec;
     size_t i = 0;
-    std::generate_n(std::back_inserter(vec), _opts.indexes,
+    std::generate_n(std::back_inserter(vec), indexes,
                     [this, &i]() {
                         BSONObjBuilder b;
                         b << "ns" << ns()
@@ -125,7 +125,7 @@ vector<BSONObj> Collection::index_specs() const {
                         if (is_tokumx()) {
                             b << "compression" << "zlib"
                               << "readPageSize" << (128 << 10);
-                            if (_opts.clustering) {
+                            if (clustering) {
                                 b << "clustering" << true;
                             }
                         }
@@ -176,10 +176,10 @@ void Collection::fill() {
         static const size_t batch = 1<<17;
         std::thread producer([&objs_queue, this]() {
                 try {
-                    for (size_t i = 0; i < _opts.documents; interrupter.check_for_interrupt()) {
-                        size_t this_batch = std::min(batch, _opts.documents - i);
+                    for (size_t i = 0; i < Collection::documents; interrupter.check_for_interrupt()) {
+                        size_t this_batch = std::min(batch, Collection::documents - i);
                         shared_ptr<vector<BSONObj> > vec(new vector<BSONObj>(this_batch));
-                        std::generate(vec->begin(), vec->end(), std::bind(random_obj, _opts));
+                        std::generate(vec->begin(), vec->end(), random_obj);
                         objs_queue.push(vec);
                         i += this_batch;
                     }
@@ -193,8 +193,8 @@ void Collection::fill() {
 
         timestamp_t t0 = now();
         counter<size_t> i(t0);
-        for (; i < _opts.documents; interrupter.check_for_interrupt()) {
-            size_t this_batch = std::min(batch, _opts.documents - i);
+        for (; i < Collection::documents; interrupter.check_for_interrupt()) {
+            size_t this_batch = std::min(batch, Collection::documents - i);
             shared_ptr<vector<BSONObj> > objs = objs_queue.front();
             objs_queue.pop();
             conn().insert(ns(), *objs);
@@ -226,10 +226,10 @@ void Collection::fill() {
 
 size_t UpdateRunner::threads = 0;
 void UpdateRunner::step(mongo::DBClientBase &conn) {
-    BSONObj spec = random_a(_opts);
+    BSONObj spec = random_a();
     BSONObjBuilder b;
     BSONObjBuilder incb(b.subobjStart("$inc"));
-    _random_obj(incb, _opts, false, false);
+    _random_obj(incb, false, false);
     incb.doneFast();
 
     {
@@ -241,7 +241,7 @@ void UpdateRunner::step(mongo::DBClientBase &conn) {
 
 size_t PointQueryRunner::threads = 0;
 void PointQueryRunner::step(mongo::DBClientBase &conn) {
-    BSONObj spec = random_a(_opts);
+    BSONObj spec = random_a();
     {
         alarm a;
         auto_ptr<mongo::DBClientCursor> c = conn.query(ns(), spec);
@@ -256,7 +256,7 @@ size_t RangeQueryRunner::threads = 0;
 size_t RangeQueryRunner::stride = 0;
 bool RangeQueryRunner::covered = false;
 void RangeQueryRunner::step(mongo::DBClientBase &conn) {
-    long long x = random() % (_opts.documents - stride);
+    long long x = random() % (Collection::documents - stride);
     long long y = x + stride;
     static const BSONObj covered_projection = BSON("_id" << 0 << "a" << 1);
     {

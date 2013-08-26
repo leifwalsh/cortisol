@@ -16,6 +16,7 @@
 
 #include "counter.h"
 #include "options.h"
+#include "output.h"
 #include "thread.h"
 
 namespace cortisol {
@@ -26,6 +27,9 @@ using std::unique_ptr;
 using std::string;
 using std::stringstream;
 using std::vector;
+
+using out::ofs;
+using out::ors;
 
 using mongo::BSONObj;
 using mongo::BSONObjBuilder;
@@ -89,6 +93,16 @@ class Collection : public ConnectionInfo {
     void drop();
     void fill();
 
+    // config
+    static size_t collections;
+    static size_t indexes;
+    static bool clustering;
+    static size_t fields;
+    static size_t documents;
+    static size_t padding;
+    static double compressibility;
+    static po::options_description options_description();
+
     Collection(Collection &&o) = default;
     Collection &operator=(Collection &&o) = default;
 };
@@ -132,9 +146,6 @@ class CollectionRunner : public ConnectionInfo {
 
     template<class ostream_type>
     static void header(ostream_type &os) {
-        using out::ofs;
-        using out::ors;
-
         os << "# " << out::pad(16) << "ns" << ofs
            << out::pad(10) << "type" << ofs
            << out::pad(4) << "id" << ofs
@@ -143,9 +154,6 @@ class CollectionRunner : public ConnectionInfo {
 
     template<class ostream_type>
     void report(ostream_type &os, timestamp_t ti) {
-        using out::ofs;
-        using out::ors;
-
         static std::mutex _m;
         std::lock_guard<std::mutex> lk(_m);
         os << out::pad(18) << ns() << ofs
@@ -156,9 +164,6 @@ class CollectionRunner : public ConnectionInfo {
 
     template<class ostream_type>
     void total(ostream_type &os, timestamp_t ti) {
-        using out::ofs;
-        using out::ors;
-
         os << out::pad(18) << ns() << ofs
            << out::pad(10) << name() << ofs
            << out::pad(4) << _id << ofs

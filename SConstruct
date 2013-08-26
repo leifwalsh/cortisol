@@ -18,12 +18,19 @@ AddOption("--prefix",
           action="store",
           default="/usr/local",
           help="installation root")
+AddOption("--timehack",
+          dest="timehack",
+          action="store_true",
+          help="-DMONGO_BOOST_TIME_UTC_HACK")
 
-env = Environment(ENV=os.environ, #CPPDEFINES=['MONGO_BOOST_TIME_UTC_HACK'],
+env = Environment(ENV=os.environ,
                   CC=os.getenv('CC', 'gcc'),
                   CXX=os.getenv('CXX', 'g++'),
                   CPPPATH=['#tokukv/include'],
                   LIBPATH=['#tokukv/lib'])
+
+if GetOption('timehack'):
+    env.Append(CPPDEFINES=['MONGO_BOOST_TIME_UTC_HACK'])
 
 def add_libs(path):
     env.Prepend(CPPPATH=[os.path.join(path, 'include')])
